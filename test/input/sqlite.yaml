@@ -1,0 +1,73 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: SQLite regression tests
+suite: sqlite
+output: test/output/sqlite.yaml
+tests:
+
+- title: Remove any existing regression database
+  suite: dropdb
+  tests:
+  - rmdir: build/regress/sqlite
+
+- title: Deploy the regression database
+  suite: createdb
+  tests:
+  - mkdir: build/regress/sqlite
+  - write: build/regress/sqlite/htsql_demo.sqlite
+    data: ""
+  - connect: &connect-demo
+      engine: sqlite
+      database: build/regress/sqlite/htsql_demo.sqlite
+    sql: test/sql/demo-sqlite.sql
+  - db: *connect-demo
+  - py: test/sql/demo-load.py
+  - write: build/regress/sqlite/htsql_edge.sqlite
+    data: ""
+  - connect: &connect-edge
+      engine: sqlite
+      database: build/regress/sqlite/htsql_edge.sqlite
+    sql: test/sql/edge-sqlite.sql
+  - write: build/regress/sqlite/htsql_sandbox.sqlite
+    data: ""
+  - connect: &connect-sandbox
+      engine: sqlite
+      database: build/regress/sqlite/htsql_sandbox.sqlite
+    sql: |
+        -- The `sandbox` database is populated by the tests.
+
+- title: Run the test collection
+  suite: test
+  tests:
+  - set: sqlite
+  - db: *connect-sandbox
+    extensions:
+      htsql: {debug: true}
+    save: sandbox
+  - db: *connect-edge
+    extensions:
+      htsql: {debug: true}
+    save: edge
+  - db: *connect-demo
+    extensions:
+      htsql: {debug: true}
+    save: demo
+  # The Regression Schema
+  - include: test/input/schema.yaml
+  # Examples from the Tutorial
+  - include: test/input/tutorial.yaml
+  # Standard Data Types, Functions, and Operations
+  - include: test/input/library.yaml
+  # Edge Cases of HTSQL-to-SQL Translation
+  - include: test/input/translation.yaml
+  # Formatting Output Data
+  - include: test/input/format.yaml
+  # Extensions
+  - include: test/input/addon.yaml
+  # Error Reporting
+  - include: test/input/error.yaml
+  # Embedding HTSQL
+  - include: test/input/embedding.yaml
+

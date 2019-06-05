@@ -1,0 +1,137 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: MySQL regression tests
+suite: mysql
+output: test/output/mysql.yaml
+tests:
+
+- title: Remove any existing regression database
+  suite: dropdb
+  tests:
+  - connect: &connect-admin
+      engine: mysql
+      database: mysql
+      username: ${MYSQL_USERNAME}
+      password: ${MYSQL_PASSWORD}
+      host: ${MYSQL_HOST}
+      port: ${MYSQL_PORT}
+    sql: |
+        DROP DATABASE `htsql_demo`;
+    ignore: true
+  - connect: *connect-admin
+    sql: |
+        DROP USER `htsql_demo`;
+    ignore: true
+  - connect: *connect-admin
+    sql: |
+        DROP DATABASE `htsql_edge`;
+    ignore: true
+  - connect: *connect-admin
+    sql: |
+        DROP USER `htsql_edge`;
+    ignore: true
+  - connect: *connect-admin
+    sql: |
+        DROP DATABASE `htsql_sandbox`;
+    ignore: true
+  - connect: *connect-admin
+    sql: |
+        DROP USER `htsql_sandbox`;
+    ignore: true
+
+- title: Deploy the regression database
+  suite: createdb
+  tests:
+  # Create the `demo` database
+  - connect: *connect-admin
+    sql: |
+        CREATE DATABASE `htsql_demo`
+            CHARACTER SET utf8 COLLATE utf8_general_ci;
+        CREATE USER `htsql_demo`
+            IDENTIFIED BY 'secret';
+        GRANT ALL PRIVILEGES
+            ON `htsql_demo`.* TO `htsql_demo`;
+  - connect: &connect-demo
+      engine: mysql
+      database: htsql_demo
+      username: htsql_demo
+      password: secret
+      host: ${MYSQL_HOST}
+      port: ${MYSQL_PORT}
+    sql: test/sql/demo-mysql.sql
+  - db: *connect-demo
+  - py: test/sql/demo-load.py
+  # Create the `edge` database
+  - connect: *connect-admin
+    sql: |
+        CREATE DATABASE `htsql_edge`
+            CHARACTER SET utf8 COLLATE utf8_general_ci;
+        CREATE USER `htsql_edge`
+            IDENTIFIED BY 'secret';
+        GRANT ALL PRIVILEGES
+            ON `htsql_edge`.* TO `htsql_edge`;
+  - connect: &connect-edge
+      engine: mysql
+      database: htsql_edge
+      username: htsql_edge
+      password: secret
+      host: ${MYSQL_HOST}
+      port: ${MYSQL_PORT}
+    sql: test/sql/edge-mysql.sql
+  # Create the `sandbox` database
+  - connect: *connect-admin
+    sql: |
+        CREATE DATABASE `htsql_sandbox`
+            CHARACTER SET utf8 COLLATE utf8_general_ci;
+        CREATE USER `htsql_sandbox`
+            IDENTIFIED BY 'secret';
+        GRANT ALL PRIVILEGES
+            ON `htsql_sandbox`.* TO `htsql_sandbox`;
+  - connect: &connect-sandbox
+      engine: mysql
+      database: htsql_sandbox
+      username: htsql_sandbox
+      password: secret
+      host: ${MYSQL_HOST}
+      port: ${MYSQL_PORT}
+    sql: |
+        -- The `sandbox` database is populated by the tests.
+
+- title: Run the test collection
+  suite: test
+  tests:
+  - set: mysql
+  - db: *connect-sandbox
+    extensions:
+      htsql: {debug: true}
+      tweak.pool: {}
+    save: sandbox
+  - db: *connect-edge
+    extensions:
+      htsql: {debug: true}
+      tweak.pool: {}
+    save: edge
+  - db: *connect-demo
+    extensions:
+      htsql: {debug: true}
+      tweak.pool: {}
+    save: demo
+  # The Regression Schema
+  - include: test/input/schema.yaml
+  # Examples from the Tutorial
+  - include: test/input/tutorial.yaml
+  # Standard Data Types, Functions, and Operations
+  - include: test/input/library.yaml
+  # Edge Cases of HTSQL-to-SQL Translation
+  - include: test/input/translation.yaml
+  # Formatting Output Data
+  - include: test/input/format.yaml
+  # Extensions
+  - include: test/input/addon.yaml
+  # Error Reporting
+  - include: test/input/error.yaml
+  # Embedding HTSQL
+  - include: test/input/embedding.yaml
+

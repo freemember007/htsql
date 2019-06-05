@@ -1,0 +1,103 @@
+
+\documentclass{article}
+
+\include{prelude}
+
+\begin{document}
+
+\tikzset{
+    > = stealth', shorten > = 1pt, shorten < = 1pt,
+    node distance = 0.1cm,
+    domain node/.style = {fill=black!10, rectangle, minimum size=3cm,
+                          rounded corners},
+    class node/.style = {fill=black!10, circle, minimum size=3cm},
+    node content/.style = {matrix, nodes={font=\ttfamily\footnotesize,
+                                          inner sep=.5pt,
+                                          text depth=.25ex, text height=1.5ex}},
+    node header/.style = {font=\itshape},
+    arrow/.style = {single arrow, fill=black!5, minimum height=3cm,
+                    minimum width=2.5cm, single arrow head extend=.1cm,
+                    single arrow tip angle=120},
+    arrow header/.style = {font=\ttfamily},
+    brace/.style = {decorate, decoration={brace, amplitude=8pt, raise=1.5cm},
+                    draw=blue!50},
+    brace header/.style = {below=1.75cm, font=\itshape\color{blue!75}}
+}
+
+\begin{tikzpicture}
+
+\node[class node] (program) {};
+\node[arrow] (program to school) [right=of program] {};
+\node[class node] (school) [right=of program to school] {};
+\node[arrow] (school to string) [right=of school] {};
+\node[domain node] (string) [right=of school to string] {};
+
+\node[node header] at (program.north) [above]
+    {program};
+\node[arrow header] at (program to school.north) [above]
+    {school};
+\node[node header] at (school.north) [above]
+    {school};
+\node[arrow header] at (school to string.north) [above]
+    {campus};
+\node[node header] at (string.north) [above]
+    {string};
+
+\node[node content] at (program)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (gee) {{[eng.gee]}}; \\
+    \node (uelec) {{[eng.uelec]}}; \\
+    \node (pmth) {{[ns.pmth]}}; \\
+    \node (gmth) {{[ns.gmth]}}; \\
+    \node (umth) {{[ns.umth]}}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\node[node content] at (school)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (eng) {{[eng]}}; \\
+    \node (ns) {{[ns]}}; \\
+    \node (sc) {{[sc]}}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\node[node content] at (string)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (north) {'north'}; \\
+    \node (old) {'old'}; \\
+    \node (south) {'south'}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\draw[->]
+    (gee.east) to (eng.west);
+\draw[->]
+    (uelec.east) to (eng.west);
+\draw[->]
+    (pmth.east) to (ns.west);
+\draw[->]
+    (gmth.east) to (ns.west);
+\draw[->]
+    (umth.east) to (ns.west);
+
+\draw[->]
+    (eng.east) to (north.west);
+\draw[->]
+    (ns.east) to (old.west);
+
+\draw[brace]
+    (school.west)
+    -- node[brace header] {a total link}
+    (program.east);
+\draw[brace]
+    (string.west)
+    -- node[brace header] {a partial attribute}
+    (school.east);
+
+\end{tikzpicture}
+
+\end{document}
+

@@ -1,0 +1,60 @@
+
+\documentclass{article}
+
+\include{prelude}
+
+\begin{document}
+
+\tikzset{
+    > = stealth', shorten > = 1pt, shorten < = 1pt,
+    node distance = 1.5cm,
+    unit node/.style = {fill=black!10, star, star points=8, minimum size=3cm},
+    domain node/.style = {fill=black!10, rectangle, minimum size=3cm,
+                          rounded corners},
+    class node/.style = {fill=black!10, circle, minimum size=3cm},
+    node content/.style = {matrix, nodes={font=\ttfamily\footnotesize,
+                                          inner sep=.5pt,
+                                          text depth=.25ex, text height=1.5ex}},
+    node header/.style = {font=\itshape}
+}
+
+\begin{tikzpicture}
+
+\node[unit node] (unit) {};
+\node[domain node] (integer) [right=of unit] {};
+\node[class node] (school) [right=of integer] {};
+
+\node[node header] at (unit.north) [above]
+    {unit};
+\node[node header] at (integer.north) [above]
+    {integer};
+\node[node header] at (school.north) [above]
+    {school};
+
+\node[node content] at (unit)
+{
+    \node[text height=2ex] {\large{@}}; \\
+};
+
+\node[node content] at (integer)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node {-1}; \\
+    \node {0}; \\
+    \node {1}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\node[node content] at (school)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node {{[eng]}}; \\
+    \node {{[ns]}}; \\
+    \node {{[sc]}}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\end{tikzpicture}
+
+\end{document}
+

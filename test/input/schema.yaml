@@ -1,0 +1,152 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: The Regression Schema
+suite: schema
+tests:
+
+- title: Tables
+  tests:
+  # Administrative Directory
+  - uri: /school
+  - uri: /department
+  - uri: /program.limit(50)
+  - uri: /course.limit(50)
+  # Instructor Directory
+  - uri: /instructor.limit(50)
+  - uri: /confidential.limit(50)
+  - uri: /appointment.limit(50)
+  # Class Directory
+  - uri: /semester
+  - uri: /class.limit(50)
+  # Enrollment Directory
+  - uri: /student.limit(50)
+  - uri: /enrollment.limit(50)
+  # Requirement Directory
+  - uri: /prerequisite.limit(50)
+  - uri: /classification.limit(50)
+  - uri: /course_classification.limit(50)
+  - uri: /program_requirement.limit(50)
+
+- title: Links
+  tests:
+  # FIXME: rewrite using locators once we have them.
+
+  # School -> Department
+  - uri: /(school?code='art').department
+  # School -> Program
+  - uri: /(school?code='art').program
+
+  # Department -> School (singular, optional)
+  - uri: /(department?code='ee').school
+  # Department -> Course
+  - uri: /(department?code='ee').course
+  # Department -> Appointment
+  - uri: /(department?code='ee').appointment
+
+  # Program -> School (parental)
+  - uri: /(program?school_code='la'&code='uengl').school
+  # Program -> Program (ambiguous)
+  - uri: /(program?school_code='la'&code='uengl').program
+    expect: 400
+  # Program -> Program (singular, self-referencial)
+  - uri: /(program?school_code='la'&code='uengl').part_of
+  # Program -> Program (reverse self-referential)
+  # FIXME: not enough data
+  - uri: /(program?school_code='la'&code='uengl').program_via_part_of
+  # Program -> Student
+  - uri: /(program?school_code='la'&code='uengl').student
+  # Program -> Program Requirement
+  - uri: /(program?school_code='la'&code='uengl').program_requirement
+
+  # Course -> Department (parental)
+  - uri: /(course?department_code='lang'&no=345).department
+  # Course -> Class
+  - uri: /(course?department_code='lang'&no=345).class
+  # Course -> Prerequisite (ambiguous)
+  - uri: /(course?department_code='lang'&no=345).prerequisite
+    expect: 400
+  # Course -> Prerequisite (using on_course)
+  - uri: /(course?department_code='lang'&no=345).prerequisite_via_on_course
+  # Course -> Prerequisite (using of_course)
+  - uri: /(course?department_code='lang'&no=345).prerequisite_via_of_course
+  # Course -> Course Classification
+  - uri: /(course?department_code='lang'&no=345).course_classification
+
+  # Instructor -> Confidential (singular, optional)
+  - uri: /(instructor?code='jfreeman').confidential
+  # Instructor -> Appointment
+  - uri: /(instructor?code='jfreeman').appointment
+  # Instructor -> Class
+  - uri: /(instructor?code='jfreeman').class
+
+  # Confidential -> Instructor
+  - uri: /(confidential?instructor_code='bdoyle').instructor
+
+  # Appointment -> Department (parental)
+  - uri: /(appointment?department_code='be'
+                      &instructor_code='bdoyle').department
+  # Appointment -> Instructor (parental)
+  - uri: /(appointment?department_code='be'
+                      &instructor_code='bdoyle').instructor
+
+  # Semester -> Class
+  - uri: /(semester?year=2010&season='fall').class.limit(50)
+
+  # Class -> Course (parental)
+  - uri: /(class?class_seq=1055).course
+  # Class -> Semester (parental)
+  - uri: /(class?class_seq=1055).semester
+  # Class -> Instructor (singular, optional)
+  - uri: /(class?class_seq=1055).instructor
+  # Class -> Enrollment
+  - uri: /(class?class_seq=1055).enrollment
+
+  # Student -> Program (singular, optional)
+  - uri: /(student?id=1010).program
+  # Student -> Enrollment
+  - uri: /(student?id=1010).enrollment.limit(50)
+
+  # Enrollment -> Student (parental)
+  - uri: /(enrollment?student_id=1100&class_seq=1110).student
+  # Enrollment -> Class (parental)
+  - uri: /(enrollment?student_id=1100&class_seq=1110).class
+
+  # Prerequisite -> Course (ambiguous)
+  - uri: /(prerequisite?of_department_code='astro'&of_course_no=230
+                       &on_department_code='phys'&on_course_no=130).course
+    expect: 400
+  # Prerequisite -> Course (parental, using of_course)
+  - uri: /(prerequisite?of_department_code='astro'&of_course_no=230
+                       &on_department_code='phys'&on_course_no=130).of_course
+  # Prerequisite -> Course (parental, using on_course)
+  - uri: /(prerequisite?of_department_code='astro'&of_course_no=230
+                       &on_department_code='phys'&on_course_no=130).on_course
+
+  # Classification -> Classification (ambiguous)
+  - uri: /(classification?code='math').classification
+    expect: 400
+  # Classification -> Classification (singular, self-referencial)
+  - uri: /(classification?code='math').part_of
+  # Classification -> Classification (reverse self-referential)
+  - uri: /(classification?code='math').classification_via_part_of
+  # Classification -> Course Classification
+  - uri: /(classification?code='math').course_classification
+  # Classification -> Program Requirement
+  - uri: /(classification?code='math').program_requirement
+
+  # Course Classification -> Course (parental)
+  - uri: /(course_classification?department_code='astro'&course_no=110
+                                &classification_code='astrotheory').course
+  # Course Classification -> Classification (parental)
+  - uri: /(course_classification?department_code='astro'&course_no=110
+                                &classification_code='astrotheory').classification
+
+  # Program Requirement -> Program (parental)
+  - uri: /(program_requirement?school_code='bus'&program_code='uacct'
+                              &classification_code='accounting').program
+  # Program Requirement -> Classification (parental)
+  - uri: /(program_requirement?school_code='bus'&program_code='uacct'
+                              &classification_code='accounting').classification
+

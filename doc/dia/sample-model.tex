@@ -1,0 +1,113 @@
+
+\documentclass{article}
+
+\include{prelude}
+
+\begin{document}
+
+\tikzset{
+    > = stealth', shorten > = 1pt, shorten < = 1pt,
+    node distance = 3cm and 3cm,
+    unit node/.style = {fill, star, star points=8, inner sep=0pt, minimum size=3mm},
+    class node/.style = {fill, circle, inner sep=0pt, minimum size=2mm},
+    domain node/.style = {fill, rectangle, inner sep=0pt, minimum size=2mm},
+    arrow/.style = {font=\small\ttfamily, above, sloped},
+    legend/.style = {font=\small\color{black!70}},
+    information/.style = {rounded corners, inner sep=1ex, fill=blue!5}
+}
+
+\pgfdeclarelayer{background}
+\pgfsetlayers{background,main}
+
+\begin{tikzpicture}
+
+\node[unit node] (unit) {};
+\node[class node] (school) [below right=3cm and 1.5cm of unit] {};
+\node[class node] (program) [right=of school] {};
+\node[class node] (department) [below left=3cm and 1.5cm of unit] {};
+\node[class node] (course) [left=of department] {};
+\node[domain node] (string) [below=of department] {};
+
+\draw[->]
+    (unit)
+    to[bend left] node[arrow, near end] {program}
+    (program);
+\draw[->, very thick]
+    (unit)
+    to[bend left] node[arrow] {school}
+    (school);
+\draw[->]
+    (unit)
+    to[bend right] node[arrow] {department}
+    (department);
+\draw[->]
+    (unit)
+    to[bend right] node[arrow, near end] {course}
+    (course);
+
+\draw[->]
+    (program)
+    to[bend right] node[arrow] {school}
+    (school);
+\draw[->]
+    (school)
+    to[bend right] node[arrow] {program}
+    (program);
+\draw[->, very thick]
+    (school)
+    to[bend right] node[arrow] {department}
+    (department);
+\draw[->]
+    (department)
+    to[bend right] node[arrow] {school}
+    (school);
+\draw[->]
+    (department)
+    to[bend right] node[arrow] {course}
+    (course);
+\draw[->]
+    (course)
+    to[bend right] node[arrow] {department}
+    (department);
+\draw[->]
+    (program)
+    edge[loop, min distance=2cm, in=-35, out=35] node[arrow] {part\_of}
+    (program);
+\draw[<-]
+    (program)
+    edge[loop, min distance=6cm, in=-60, out=60] node[arrow] {program\_via\_part\_of}
+    (program);
+
+\draw[->]
+    (department)
+    to[bend left] node[arrow] {code}
+    (string);
+\draw[->, very thick]
+    (department)
+    to node[arrow] {name}
+    (string);
+\draw[->]
+    (department)
+    to[bend right] node[arrow, below, rotate=180] {school\_code}
+    (string);
+
+\node[unit node] (unit node) [below=2 of school] {};
+\node[class node] (class node) [below=1ex of unit node] {};
+\node[domain node] (domain node) [below=1ex of class node] {};
+\node[legend] (unit legend) [right=.5em of unit node]
+    {unit node};
+\node[legend] (class legend) [right=.5em of class node]
+    {class node};
+\node[legend] (domain legend) [right=.5em of domain node]
+    {domain node};
+
+\begin{pgfonlayer}{background}
+    \node[information]
+        [fit=(unit node) (class node) (domain node)
+             (unit legend) (class legend) (domain legend)] {};
+\end{pgfonlayer}
+
+\end{tikzpicture}
+
+\end{document}
+

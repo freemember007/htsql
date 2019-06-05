@@ -1,0 +1,290 @@
+List of Changes
+===============
+
+
+2.3.3 (2013-02-01)
+------------------
+
+* Added a binary attachment operator (`@`).
+* Added support for references in locators.
+* Added comment syntax (`#`).
+* `tweak.shell`: include JQuery and Codemirror to the source
+  and binary distributions.
+* `tweak.filedb`: makes a database from a set of CSV files.
+* `tweak.gateway`: defines gateway to other database servers.
+* `tweak.csrf`: protection against CSRF attacks.
+* `tweak.etl`: insert, merge, update and delete commands
+  (PostgreSQL only, work in progress)
+* `tweak.django`: fixed the introspector missing auto-created
+  many-to-many models, respect Django transaction context.
+* `htsql-ctl shell`: improved output of `describe` command,
+  allow multi-line queries when the input is not TTY.
+* Configuration: added support for `!include` tag.
+* Reduced memory footprint for large database schemas.
+* Improved error reporting.
+* Many other fixes and improvements.
+
+
+2.3.2 (2012-08-24)
+------------------
+
+* `tweak.shell`: fixed the loading problem by updating the URL of
+  the CodeMirror repository; added missing *.png files.
+* Fixed an assertion error when `top()` gets a singular argument;
+  other minor fixes.
+
+
+2.3.1 (2012-06-28)
+------------------
+
+* Added record and list data types, support for nested records and
+  segments, hierarchical output.
+* Added support for locators: single record access using an array-like
+  syntax.
+* `top()`: retrieves the first value of a plural argument.
+* Added and updated output formats: `raw`, `json`, `xml`; updated style
+  for HTML output.
+* `HTSQL-DJANGO`: a Django gateway to HTSQL.
+* Moved all cache and configuration files to `~/.htsql/`.  Added
+  `~/.htsqlrc` with default configuration parameters for `htsql-ctl shell`
+  and `htsql-ctl serve`.
+* Removed `htsql-ctl get` and `htsql-ctl post` routines; added
+  `htsql-ctl ui`, an experimental visual HTSQL browser.
+* Removed support for Python 2.5.  Currently supported are 2.6 and 2.7.
+* Many other fixes and documentation updates.
+
+
+2.3.0 (2012-03-07)
+------------------
+
+* Clarified HTSQL licensing: HTSQL is now released under three
+  licenses: Free (AGPLv3), Permissive for use with open source
+  databases, and Evaluation for use with proprietary database servers.
+  See http://htsql.org/license/ for more information.
+* Switched to a new version numbering scheme: each public release
+  is marked by three numbers `X.Y.Z`.  Here `X.Y` are the major
+  and minor version number and `Z` is a release number.  An even (odd)
+  value of `Y` identifies stable (development) releases respectively.
+  Thus `2.3.0` starts a new series of development  releases, which will
+  conclude with the release of `2.4.0`.  Stable releases maintain
+  syntax, semantics and API compatibility while development releases
+  don't.
+* Separated HTSQL core and database backends into different source
+  packages: `HTSQL` (includes the core and SQLite backend),
+  `HTSQL-PGSQL`, `HTSQL-MYSQL`, `HTSQL-ORACLE`, `HTSQL-MSSQL`.
+* Extracted connection pooling to a separate addon `tweak.pool` since
+  it was causing issues with SQLite and MySQL backends.
+* Added a shell command `describe` to describe database metadata.
+* Added a quick start guide: "HTSQL Handbook", other documentation
+  updates.
+
+
+2.2.1 (2011-12-15)
+------------------
+
+* Updated API for making HTSQL requests from Python application.
+* Improved error messages; added suggestions for lookup errors.
+* `tweak.override`: added support for global functions,
+  parameterized calculations.
+
+
+2.2.0 rc 1 (2011-11-22)
+-----------------------
+
+* Added ``@`` scope reset operator.
+* Omit schemas when serializing table names to SQL.
+* Validate configuration on startup.
+* Added `tweak.override`: restricting access to specific tables
+  and columns, adding database constraints, changing table, column
+  and link labels, defining calculated fields.
+* Added `tweak.django`: integration with Django framework.
+* `tweak.meta`: improved the meta schema.
+* `tweak.cors`: added `origin` parameter.
+* `tweak.shell`: autocompletion by Ctrl-Space, improved layout.
+* `htsql-ctl shell`: Tab-completion for commands and identifiers.
+* Refactored database introspection and model graph.
+* Refactored to use Unicode strings internally.
+* Various build improvements: now building source, DEB and RPM packages.
+* Updated documentation on installing, using and configuring HTSQL.
+* Documentation on deploying on Heroku cloud platform.
+* Added regression tests for addons.
+
+
+2.2.0 beta 2 (2011-09-22)
+-------------------------
+
+* Rebuilt source packages to include missing resource files.
+
+
+2.2.0 beta 1 (2011-09-20)
+-------------------------
+
+* Fixed silent data truncation bug on invalid values; users of SQLite
+  are adviced to upgrade.
+* Added support for loading application configuration from a file;
+  option `-C FILE`.
+* Refactored plugin architecture; added support for plugin parameters.
+* Added SQLAlchemy adapter.
+* Added support for statement-like functions; converted formatters
+  to statements.
+* Added plugin `tweak.meta`: database metadata exposed as a database.
+* Added plugin `tweak.shell`: a simple web-based HTSQL editor.
+* Removed plugin `tweak.schema`: functionality is implemented in
+  the core.
+
+
+2.1.1 final (2011-08-30)
+------------------------
+
+* General code cleanup and refactoring.
+* Improved emitted SQL for projections and aggregates.
+* Changed operator precedence to avoid parentheses around
+  filtering and projection operators.
+* Added a test data generator for HTSQL regression tests
+  (thank to Yuri Yerokhin).
+* Added support for hierarchical headers for `/:txt` and `/:html`
+  formatters.
+* Updated documentation.
+
+
+2.1.0 rc 1 (2011-06-21)
+-----------------------
+
+* Added `/:tsv` formatter that generates output in tab-separated format
+  (thank to Andrey Popp).
+* A lot of updates to the tutorial, the reference and other
+  documentation.
+* Minor code updates and bug fixes.
+
+
+2.1.0 beta 3 (2011-05-13)
+-------------------------
+
+* Added a fiber linking operator: `{x,y} -> T{x,y}`.
+* Provide named attributes for kernel expressions and the complement
+  link in a quotient scope: `(program^degree)` generates attribute
+  `degree` as an alias for `*1` and `program` as an alias for `^`.
+* Added in-selector definitions: `{attr := expr}` is de-sugared to
+  `define(attr := expr){attr}`.
+* Added `$reference` syntax for inter-scope references.
+* Added flow method `fork()`: clone the last node in the flow, e.g.
+  `/course?credits=max(fork().credits)`.
+* Added flow methods `.filter()` and `.select()` as aliases to `?`
+  and `{}` operators.
+* Added method `distinct()`: `distinct(table{kernel})` produces
+  a flow of unique values of `kernel` as it runs over `table`;
+  it is equivalent to `table^kernel`.  `distinct()` and `^` operators
+  now filter out NULL values in the kernel.
+* Changed semantics of `.` and `{}` expressions: specifier (`.`)
+  now allows arbitrary expressions on both sides, selector (`{}`)
+  now sets the output columns in the current scope.
+* Added syntax `*N`, where `N` is an integer literal, to get the value
+  of the `N`-th output column.
+* Added addon `tweak.cors`: append `Access-Control-Allow-Origin: *`
+  to every HTTP response.
+* Added addon `tweak.pgsql.inet`: basic manipulations on values
+  of `INET` data type.
+* Added addon `tweak.pgsql.view`: determine foreign key relationships
+  for views in Postgresql.
+* Use `search_path` or its analogues to choose a table when
+  the table name is ambiguous.
+* Optimized introspection for Oracle.
+* Added option `-p` to ask for a password on startup.
+* Added shell command `run filename.htsql` to load and execute
+  an HTSQL query from a file.
+* Many other fixes and documentation updates.
+
+
+2.1.0 beta 2 (2011-03-29)
+-------------------------
+
+* Added support for `datetime` and `time` date types.
+* Added support for calculated attributes, `define()` and `where()`
+  macros.
+* Added addon `tweak.pgsql.catalog`: configure primary and foreign keys
+  for `pg_catalog.*` tables.
+* Added addon `tweak.schema`: allow addressing a table in a specified schema
+  as `<schema>_<table>` identifier.
+* Added addon `tweak.autolimit`: add ``LIMIT`` clause to each query.
+* Added addon `tweak.pgsql.timeout`: set statement timeout for each query.
+* Added Jinja integration demo.
+* Many minor fixes and updates.
+
+
+2.1.0 beta 1 (2011-03-08)
+-------------------------
+
+* Ported to MySQL, Oracle and MS SQL Server.
+* Added support for projections (`base^kernel`).
+
+
+2.0.1 final (2011-02-01)
+------------------------
+
+* Merged `/:json` and `/:jsonex` formatters; use `/:jsonex` layout
+  to avoid CSRF issues.
+* Documentation updates.
+
+
+2.0.0 rc 1 (2011-01-21)
+-----------------------
+
+* HTRAF demo is promoted to a standalone project; see
+  http://bitbucket.org/prometheus/htraf.
+* Added `/:jsonex` format: JSON with extra metadata.
+* Documentation updates.
+
+
+2.0.0 beta 5 (2010-12-14)
+-------------------------
+
+* Completed the SQLite backend.
+* Completed the standard library.
+
+
+2.0.0 beta 4 (2010-12-05)
+-------------------------
+
+* Refactored peep-hole optimization of the frame tree and SQL
+  serialization; refined the generated SQL.
+* Refactored the internal API for adding functions.
+* Added new (experimental) syntax for infix function call.
+* Added an "Examples" section to the documentation.
+* Fixed compatibility with Python 2.5.
+* Many minor bugfixes, documentation updates, etc.
+
+
+2.0.0 beta 3 (2010-11-09)
+-------------------------
+
+* Refactored the translator from the term tree to the frame tree;
+  added a new translation step to collapse nested frames and reduce
+  SQL expressions.
+* Added the HTRAF demo: use HTSQL with client-side javascript
+  to define complex dashboards.
+* Added the SSI demo: using HTSQL for web without giving direct access
+  to the database.
+* Updated the tutorial, minor bugfixes, regression test updates, etc.
+
+
+2.0.0 beta 2 (2010-10-01)
+-------------------------
+
+* Refactored the translator from the expression graph to the term tree.
+* Added `Content-Disposition` header to `:json` and `:csv` renderers.
+* Merged the tutorial to the repository.
+
+
+2.0.0 beta 1 (2010-09-21)
+-------------------------
+
+* Initial beta release.
+* PostgreSQL and SQLite backends are (mostly) supported, the former
+  more than the latter.
+* The SQL translator needs more work, in particular, the term tree,
+  the frame structure and the serializer.
+* Lots of functions are either not implemented or missing a proper
+  serializer, especially in the SQLite backend.
+* Other areas which need more work before the final release: rendering,
+  introspection, regression tests and documentation.
+

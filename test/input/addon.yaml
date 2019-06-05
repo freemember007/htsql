@@ -1,0 +1,965 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: HTSQL Extensions
+suite: addon
+tests:
+
+# TWEAK - tweaks for HTSQL
+- title: tweak
+  tests:
+  # Addon description
+  - ctl: [ext, tweak]
+
+# TWEAK.AUTOLIMIT - limit number of rows
+- title: tweak.autolimit
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.autolimit]
+
+  # Set limit=10000 (default)
+  - load: demo
+    extensions:
+      tweak.autolimit: {}
+
+  - uri: /{2+2}
+  - uri: /school
+  - uri: /school?code='art'{*, /department}
+  - uri: /school{*, /department}?code='art'
+
+  # Merging consecutive limits.
+  - uri: /school.limit(10001)
+  - uri: /school.limit(10000)
+  - uri: /school.limit(9999)
+  - uri: /program.limit(2,3)
+  - uri: /program.limit(2,3).sort(title)
+  - uri: /program.limit(2,3).school
+  - uri: /program.limit(2,3).student
+
+  # Set limit=5
+  - load: demo
+    extensions:
+      tweak.autolimit: { limit: 5 }
+
+  - uri: /{2+2}
+  - uri: /school
+
+  # Merging consecutive limits
+  - uri: /school.limit(6)
+  - uri: /school.limit(5)
+  - uri: /school.limit(4)
+  - uri: /program.limit(2,3)
+  - uri: /program.limit(2,3).sort(title)
+  - uri: /program.limit(2,3).school
+  - uri: /program.limit(2,3).student
+
+  # Set limit=null
+  - load: demo
+    extensions:
+      tweak.autolimit: { limit: null }
+
+  - uri: /{2+2}
+  - uri: /school
+
+# TWEAK.CORS - cross-origin resource sharing
+- title: tweak.cors
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.cors]
+
+  # Set origin=* (default)
+  - load: demo
+    extensions:
+      tweak.cors: {}
+  - uri: /school
+
+  # Set origin=http://demo.htsql.org
+  - load: demo
+    extensions:
+      tweak.cors: { origin: 'http://demo.htsql.org' }
+  - uri: /school
+
+  # Set origin=null
+  - load: demo
+    extensions:
+      tweak.cors: { origin: null }
+  - uri: /school
+
+# TWEAK.CSRF - cross-site request forgery protection
+- title: tweak.csrf
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.csrf]
+
+  # Test with both unprotected read and write disabled
+  - load: demo
+    extensions:
+      tweak.csrf: {}
+  - uri: /
+    ignore: &ignore-htsql-csrf-token |
+      Set-Cookie:.htsql-csrf-token=([0-9A-Za-z]+)
+  - uri: /school
+    ignore: *ignore-htsql-csrf-token
+    expect: 403
+
+  # Passing CSRF token back to the server
+  - py: |
+      # pass-csrf-token
+      import wsgiref.util
+      class response:
+          status = None
+          headers = None
+          body = None
+      def start_response(status, headers, exc=None):
+          response.status = status
+          response.headers = headers
+      def request(environ):
+          wsgiref.util.setup_testing_defaults(environ)
+          response.status = None
+          response.headers = None
+          response.body = ''.join(__pbbt__['htsql'](environ, start_response))
+          return (response.status, response.headers, response.body)
+      status, headers, body = request({'PATH_INFO': "/"})
+      token = None
+      for header, value in headers:
+          if header.lower() == 'set-cookie':
+              if ';' in value:
+                  value = value.split(';', 1)[0]
+              if '=' in value:
+                  name, value = value.split('=', 1)
+                  if name == 'htsql-csrf-token':
+                      token = value
+      assert token is not None
+      environ = {
+          'PATH_INFO': "/school",
+          'HTTP_COOKIE': "htsql-csrf-token=%s" % token,
+          'HTTP_X_HTSQL_CSRF_TOKEN': token,
+      }
+      status, headers, body = request(environ)
+      assert status == "200 OK"
+      print status
+      for header, value in headers:
+          print "%s: %s" % (header, value)
+      print
+      print body
+
+  # Test with unprotected read enabled
+  - load: demo
+    extensions:
+      tweak.csrf:
+        allow_cs_read: true
+  - uri: /school
+    ignore: *ignore-htsql-csrf-token
+
+# TWEAK.DJANGO - adapt to Django
+- py: |
+    # has-django
+    try:
+        import django
+        if django.VERSION > (1, 3):
+            __pbbt__['django'] = True
+    except ImportError:
+        pass
+  if: [sqlite, pgsql, mysql, oracle]
+- title: tweak.django
+  if: django
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.django]
+
+  # Load `test_django_sandbox` and deploy the database
+  - py: |
+      # add-module-path
+      if 'sqlite' in __pbbt__:
+          import sqlite3
+          __pbbt__['sqlite3_converters'] = sqlite3.converters.copy()
+      import __builtin__, sys, os, os.path
+      from htsql.core.util import DB
+      path = os.path.join(os.getcwd(), "test/code")
+      sys.path.insert(0, path)
+      __builtin__.sandbox = DB.parse(__pbbt__['sandbox'].db)
+      os.environ['DJANGO_SETTINGS_MODULE'] = 'test_django_sandbox.settings'
+      from test_django_sandbox import createdb
+      createdb()
+
+  # Test Django-generated database
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.django:
+        settings: test_django_sandbox.settings
+  - uri: /polls_poll{question, pub_date, count(polls_choice)}
+  - uri: /polls_choice{poll.question, choice, votes}
+  # Escaping issues
+  - uri: /polls_choice?choice~'s'
+    skip: true
+
+  # Restore the original `sys.path`
+  - py: |
+      # remove-module-path
+      from test_django_sandbox import dropdb
+      dropdb()
+      import __builtin__, sys, os, os.path
+      path = os.path.join(os.getcwd(), "test/code")
+      sys.path.remove(path)
+      del os.environ['DJANGO_SETTINGS_MODULE']
+      for name in sorted(sys.modules):
+          if name.startswith(('test_django_sandbox', 'django')):
+              del sys.modules[name]
+      del __builtin__.sandbox
+      if 'sqlite' in __pbbt__:
+          import sqlite3
+          sqlite3.converters.clear()
+          sqlite3.converters.update(__pbbt__['sqlite3_converters'])
+          del __pbbt__['sqlite3_converters']
+
+# TWEAK.FILEDB - make a database from a set of CSV files
+- title: tweak.filedb
+  if: sqlite
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.filedb]
+
+  # Sample CSV files
+  - write: build/regress/table.csv
+    data: |
+        id,text,date
+        1,one,2011-01-01
+        2,two,2012-02-02
+        3,,
+  - write: build/regress/Names.csv
+    data: |
+        regular,"""With Spaces""",copy,copy,,_0
+  - write: build/regress/irregular-fields.csv
+    data: |
+        column1,column2,column3
+        regular,row,with 3 columns
+        short,row
+        long,row,with...,an extra column
+  - write: build/regress/nothing.csv
+    data: |
+        ,,,
+        ,,,
+        ,,,
+  - write: build/regress/duplicate-table-name.csv
+    data: |
+        filename
+        duplicate-table-name.csv
+  - write: build/regress/Duplicate_Table_Name.csv
+    data: |
+        filename
+        Duplicate_Table_Name.csv
+  - write: build/regress/empty.csv
+    data: ""
+
+  # Initialize the application
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.filedb:
+        sources:
+        - file: build/regress/table.csv
+        - file: build/regress/Names.csv
+        - file: build/regress/nothing.csv
+        - file: build/regress/duplicate-table-name.csv
+        - file: build/regress/Duplicate_Table_Name.csv
+        - file: build/regress/empty.csv
+
+  # Database content
+  - uri: /table{id:integer,text,date:date}
+  - uri: /names
+  - uri: /nothing
+  - uri: /duplicate_table_name
+  - uri: /_5
+  - uri: /empty
+    expect: 400
+
+  # CSV files for testing caching (first batch)
+  - write: build/regress/volatile.csv
+    data: |
+        source
+        volatile
+  - write: build/regress/permanent.csv
+    data: |
+        source
+        permanent
+  - write: build/regress/hidden.csv
+    data: |
+        source
+        hidden
+
+  # Initialize the application with a cache
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.filedb:
+        sources:
+        - file: build/regress/volatile.csv
+        - file: build/regress/permanent.csv
+        - file: build/regress/hidden.csv
+        cache-file: build/regress/filedb.sqlite
+
+  # Available tables
+  - uri: /volatile
+  - uri: /permanent
+  - uri: /hidden
+  - uri: /_source
+    expect: 400
+
+  # Update some CSV files and add another one
+  - write: build/regress/volatile.csv
+    data: |
+        source
+        volatile/updated
+  - write: build/regress/new.csv
+    data: |
+        source
+        new
+
+  # Make an application with updated files
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.filedb:
+        sources:
+        - file: build/regress/permanent.csv
+        - file: build/regress/volatile.csv
+        - file: build/regress/new.csv
+        cache-file: build/regress/filedb.sqlite
+
+  # Available tables
+  - uri: /permanent
+  - uri: /volatile
+  - uri: /hidden
+    expect: 400
+  - uri: /new
+
+  # Make an applicate with the cache file directly
+  - db:
+      engine: sqlite
+      database: build/regress/filedb.sqlite
+    extensions:
+      htsql:
+        debug: true
+
+  # Cache content
+  - uri: /permanent
+  - uri: /volatile
+  - uri: /hidden
+  - uri: /new
+  - uri: /_source
+    ignore: true
+  - uri: /{_source[permanent].timestamp<=_source[volatile].timestamp}
+
+  # CSV files for testing encoding
+  - write: build/regress/utf8-encoded.csv
+    data: |
+        full_name
+        José Fernández
+  - write: build/regress/cp1252-encoded.csv
+    data: !!binary |
+        ZnVsbF9uYW1lCkpvc+kgRmVybuFuZGV6Cg==
+
+  # Read UTF-8 encoded CSV
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.filedb:
+        sources:
+        - file: build/regress/utf8-encoded.csv
+
+  - uri: /utf8_encoded
+
+  # Read CSV encoded with a non-default encoding.
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.filedb:
+        sources:
+        - file: build/regress/cp1252-encoded.csv
+        encoding: cp1252
+
+  - uri: /cp1252_encoded
+
+  # Cleanup
+  - rm:
+    - build/regress/table.csv
+    - build/regress/Names.csv
+    - build/regress/irregular-fields.csv
+    - build/regress/nothing.csv
+    - build/regress/duplicate-table-name.csv
+    - build/regress/Duplicate_Table_Name.csv
+    - build/regress/empty.csv
+    - build/regress/permanent.csv
+    - build/regress/volatile.csv
+    - build/regress/hidden.csv
+    - build/regress/new.csv
+    - build/regress/utf8-encoded.csv
+    - build/regress/cp1252-encoded.csv
+    - build/regress/filedb.sqlite
+
+# TWEAK.GATEWAY - define gateways to other databases
+- title: tweak.gateway
+  if: mysql
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.gateway]
+
+  # Load the addon
+  - load: demo
+    extensions:
+      tweak.gateway:
+        gateways:
+          sqlite_gw: sqlite:///build/regress/sqlite/htsql_demo.sqlite
+
+  # Normal queries
+  - uri: /sqlite_gw(/school)
+  - uri: /department[ee]{name, count(course)}/:sqlite_gw
+
+  # Formats and commands
+  - uri: /sqlite_gw(/school[art].program)/:json
+  - uri: /sqlite_gw(/fetch(count(course)))/:raw
+
+  # Errors
+  - uri: /sqlite_gw(/school/:html)
+    expect: 400
+    skip: true # is it still an error?
+  - uri: /sqlite_gw(/nothing)
+    expect: 400
+
+# TWEAK.HELLO - 'Hello, World!'
+- title: tweak.hello
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.hello]
+
+  # Load the addon
+  - load: demo
+    extensions:
+      tweak.hello: {}
+
+  # Run the command
+  - uri: /hello()
+
+  # Invalid invocation
+  - uri: /hello('world')
+    expect: 400
+
+  # Plugin parameters
+  - load: demo
+    extensions:
+      tweak.hello:
+        address: home
+        repeat: 3
+  - uri: /hello()
+
+# TWEAK.INET - IPv4 data type
+- title: tweak.inet
+  if: pgsql
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.inet]
+
+  # Use the `edge` database to get `other{inet}`
+  - load: edge
+    extensions:
+      tweak.inet: {}
+
+  # Introspection and conversion
+  - uri: /other{code, inet+, inet(inet), text(inet), integer(inet)}
+
+  # Conversions
+  - uri: /{inet('127.0.0.1')}
+  - uri: /{inet(text('127.0.0.1')), inet(2130706433)}
+  - uri: /{text(inet('127.0.0.1')), integer(inet('127.0.0.1'))}
+
+  # Invalid literals and conversions
+  - uri: /{inet('HTSQL')}
+    expect: 400
+  - uri: /{inet(text('HTSQL'))}
+    expect: 409
+  - uri: /{inet(-1)}
+    expect: 409
+
+  # Comparison
+  - uri: /{inet('192.168.24.1')=inet('192.168.24.1'),
+           inet('192.168.24.1')!=inet('192.168.12.10'),
+           inet('192.168.24.1')>inet('192.168.12.10')}
+
+  # Arithmetics
+  - uri: /{inet('192.168.12.10')+3063,
+           inet('192.168.24.1')-3063,
+           inet('192.168.24.1')-inet('192.168.12.10')}
+
+# TWEAK.META - meta database
+- title: tweak.meta
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.meta]
+
+  # Load the addon
+  - load: demo
+    extensions:
+      tweak.meta: {}
+
+  # Tables
+  - uri: /table/:meta
+  - uri: /field/:meta
+  - uri: /column/:meta
+  - uri: /link/:meta
+
+  # Links
+  - uri: /(table?name='department').field/:meta
+  - uri: /(table?name='department').column/:meta
+  - uri: /(table?name='department').link/:meta
+  - uri: /(table?name='department').link_via_target/:meta
+  - uri: /(field?table_name='school').table/:meta
+  - uri: /(field?table_name='school').column/:meta
+  - uri: /(field?table_name='school').link/:meta
+  - uri: /(column?table_name='program').table/:meta
+  - uri: /(column?table_name='program').field/:meta
+  - uri: /(link?table_name='student').table/:meta
+  - uri: /(link?table_name='student').target/:meta
+  - uri: /(link?table_name='student').field/:meta
+  - uri: /(link?table_name='student').reverse/:meta
+  - uri: /(link?table_name='student').link_via_reverse/:meta
+
+  # Links and cardinality
+  - uri: /table?name='department'
+            {name, count(field), count(column),
+             count(link), count(link_via_target)}
+         /:meta
+  - uri: /field?table_name='school'
+            {table{name}, name, kind, column{domain}, link{is_singular}}
+         /:meta
+  - uri: /column?table_name='program'
+            {table{name}, field{name, sort}}
+         /:meta
+  - uri: /link?table_name='student'
+            {table{name}, target{name}, field{name},
+             reverse{name}, link_via_reverse{name}}
+         /:meta
+
+  # Scalar queries
+  - uri: /count(table)/:meta
+  # Alternative syntax
+  - uri: /meta(/count(table))
+
+  # Meta-meta database
+  - uri: /table/:meta/:meta
+  - uri: /field/:meta/:meta
+  - uri: /column/:meta/:meta
+  - uri: /link/:meta/:meta
+
+  # Invalid queries
+  - uri: /meta()
+    expect: 400
+  - uri: /meta(/column,/link)
+    expect: 400
+  - uri: /meta(/schema)
+    expect: 400
+  - uri: /meta(table)
+    expect: 400
+
+  # Describe columns of the `type` database
+  - load: edge
+    extensions:
+      tweak.meta: {}
+  - uri: /meta(/column.sort(table.name, field.sort))
+
+  # Respect `can_read`
+  - load: demo
+    extensions:
+      tweak.csrf: {}
+      tweak.meta: {}
+  - uri: /meta(/table)
+    ignore: *ignore-htsql-csrf-token
+    expect: 403
+
+# TWEAK.OVERRIDE - adjust database metadata
+- title: tweak.override
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.override]
+
+  # Test `included-tables`
+  - load: demo
+    extensions:
+      tweak.override:
+        included-tables: [school, program]
+  - uri: /avg(school.count(program))
+  - uri: /avg(school.count(department))
+    expect: 400
+
+  # Test `excluded-tables`
+  - load: demo
+    extensions:
+      tweak.override:
+        excluded-tables: [department, course]
+  - uri: /avg(school.count(program))
+  - uri: /avg(school.count(department))
+    expect: 400
+
+  # Test `included-tables` and `excluded-tables` together
+  - load: demo
+    extensions:
+      tweak.override:
+        included-tables: [school, program, department, course]
+        excluded-tables: [department, course]
+  - uri: /avg(school.count(program))
+  - uri: /avg(school.count(department))
+    expect: 400
+
+  # Test schema qualifiers
+  - load: demo
+    extensions:
+      tweak.override:
+        included-tables: [ad.*]
+    if: [pgsql, mssql]
+  - uri: /count(program)
+    if: [pgsql, mssql]
+  - uri: /count(student)
+    expect: 400
+    if: [pgsql, mssql]
+
+  # Test `included-columns`
+  - load: demo
+    extensions:
+      tweak.override:
+        included-columns: ["*code", "*name"]
+  - uri: /school{code, count(department)}
+  - uri: /student{name, count(enrollment)}
+    expect: 400
+
+  # Test `excluded-columns`
+  - load: demo
+    extensions:
+      tweak.override:
+        excluded-columns: [confidential.ssn]
+  - uri: /max(confidential.pay_grade)
+  - uri: /confidential.ssn
+    expect: 400
+
+  # Test `not-nulls`, `unique-keys` and `foreign-keys`
+  - load: demo
+    extensions:
+      tweak.override:
+        not-nulls: [student.school_code, student.program_code]
+        unique-keys:
+          - student(name, dob)!
+        foreign-keys:
+          - student(school_code) -> school
+          - student(name)? -> instructor(full_name)
+  - uri: /student{name, dob, school.code, program.code, exists(instructor)}.limit(1)
+
+  # Test `class-labels`
+  - load: demo
+    extensions:
+      tweak.override:
+        class-labels:
+          c14n: classification
+          campus: (school^campus)
+          active_students(): (student?is_active)
+          students_by_year($year): (student?year(start_date)=$year)
+  - uri: /count(c14n)
+  - uri: /campus{campus, count(school)}
+  - uri: /classification
+    expect: 400
+  - uri: /active_students().limit(10)
+  - uri: /students_by_year(2010){name, dob, start_date}.limit(10)
+  - uri: /active_students
+    expect: 400
+  - uri: /active_students(2010)
+    expect: 400
+  - uri: /students_by_year
+    expect: 400
+  - uri: /students_by_year()
+    expect: 400
+
+  # Test `field-labels` and `field-orders`
+  - load: demo
+    extensions:
+      tweak.override:
+        field-labels:
+          program.includes: program -> program(*, part_of_code)
+          student.full_name: name
+          student.class: student -> enrollment, enrollment -> class
+          student.avg_grade: (avg(enrollment.grade))
+          program.active_students(): (student?is_active)
+          program.students_by_year($year): (student?year(start_date)=$year)
+        field-orders:
+          student: [full_name, gender, dob, avg_grade]
+          program: [code, title, degree]
+  - uri: /program?exists(includes)
+  - uri: /program?exists(program_via_part_of)
+    expect: 400
+  - uri: /student?count(class)>55
+  - uri: /student.name
+    expect: 400
+  - uri: /(program?code='gart').active_students()
+  - uri: /(program?code='gart').students_by_year(2010)
+                {full_name, dob, start_date}
+  - uri: /program.active_students
+    expect: 400
+  - uri: /program.active_students(2010)
+    expect: 400
+  - uri: /program.students_by_year
+    expect: 400
+  - uri: /program.students_by_year()
+    expect: 400
+
+  # Test duplicate labels with different number of parameters.
+  - load: demo
+    extensions:
+      tweak.override:
+        class-labels:
+          active_students: (active_students())
+          active_students(): (active_students(2010))
+          active_students($year): (active_students($year, {'f','m'}))
+          active_students($year, $gender):
+                (student?is_active&year(start_date)=$year&gender=$gender)
+        field-labels:
+          program.active_students: (active_students())
+          program.active_students(): (active_students(2010))
+          program.active_students($year): (active_students($year, {'f','m'}))
+          program.active_students($year, $gender):
+                (student?is_active&year(start_date)=$year&gender=$gender)
+  - uri: /active_students{name, gender, start_date}.limit(5)
+  - uri: /active_students(){name, gender, start_date}.limit(5)
+  - uri: /active_students(2009){name, gender, start_date}.limit(5)
+  - uri: /active_students(2009, 'm'){name, gender, start_date}.limit(5)
+  - uri: /active_students(2009, 'm', 'phd')
+    expect: 400
+  - uri: /(program?code='gart').active_students{name, gender, start_date}
+  - uri: /(program?code='gart').active_students(){name, gender, start_date}
+  - uri: /(program?code='gart').active_students(2009){name, gender, start_date}
+  - uri: /(program?code='gart').active_students(2009, 'm'){name, gender, start_date}
+  - uri: /(program?code='gart').active_students(2009, 'm', 'phd')
+    expect: 400
+
+  # Test `unlabeled_tables` and `unlabeled_columns`
+  - load: demo
+    extensions:
+      tweak.override:
+        field-labels:
+          student.class: student -> enrollment, enrollment -> class
+        unlabeled-tables: [enrollment]
+        unlabeled-columns: [id]
+  - uri: /student{name}?count(class)>55
+  - uri: /enrollment
+    expect: 400
+  - uri: /student.enrollment
+    expect: 400
+  - uri: /student.id
+    expect: 400
+
+  # Test `globals`
+  - load: demo
+    extensions:
+      tweak.override:
+        globals:
+          curr_date: date('2010-04-15')
+          max_dob(): max(@student{dob})
+          trunc_year(d): date(year(d),1,1)
+  - uri: /(student{name, dob}?date(start_date)>curr_date).limit(10)
+  - uri: /student{name, dob}?dob>max_dob()-30
+  - uri: /student^trunc_year(dob){*, count(^)}
+
+  # Test `commands`
+  - load: demo
+    extensions:
+      tweak.override:
+        commands:
+          active_students(): /student?is_active
+          students_by_year($year): /student?year(start_date)=$year
+          course_by_id($dept, $no): course[$dept.$no]
+  - uri: /active_students()
+  - uri: /students_by_year(max(student.year(start_date)))
+  - uri: course_by_id('comp', '304')
+  - uri: /students_by_year()
+    expect: 400
+  - uri: course_by_id('comp.304')
+    expect: 400
+
+# TWEAK.POOL - cache database connections
+- title: tweak.pool
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.pool]
+  # No need for special tests since `tweak.pool` is already used
+  # with regular tests for all database adapters except SQLite.
+
+# TWEAK.RESOURCE - serve static files
+- title: tweak.resource
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.resource]
+
+  # We can only test for `Not Found` error
+  - load: demo
+    extensions:
+      tweak.resource: {}
+  - uri: /-/not-found
+    expect: 404
+
+  # Non-standard prefix
+  - load: demo
+    extensions:
+      tweak.resource:
+        indicator: ;)
+  - uri: /-/not-found
+    expect: 400
+  - uri: /;)/not-found
+    expect: 404
+
+# TWEAK.SHELL - in-browser HTSQL editor
+- title: tweak.shell
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.shell]
+  - ctl: [ext, tweak.shell.default]
+
+  # A trivial test
+  - load: demo
+    extensions:
+      tweak.shell: {}
+  - uri: /shell()
+    ignore: true
+
+  # Auxiliary commands
+  - uri: /complete()
+  - uri: /complete(school)
+  - uri: /complete(department, course)
+  - uri: /produce('/school')
+  - uri: /produce('/school', 3)
+  - uri: /analyze('/school')
+  - uri: /with_permissions(/produce('/school:top'), 'true', 'false')
+  - uri: /with_permissions(/produce('/school:top'), 'false', 'false')
+
+  # Using `/shell()` as the default command
+  - load: demo
+    extensions:
+      tweak.shell.default: {}
+  - uri: /
+  - uri: /
+    headers:
+      Accept: '*/*'
+    ignore: true
+
+# TWEAK.SQLALCHEMY - adapt to SQLAlchemy
+- py: |
+    # has-sqlalchemy
+    try:
+        import sqlalchemy
+        if sqlalchemy.__version__ > '0.7.':
+            __pbbt__['sqlalchemy'] = True
+    except ImportError:
+        pass
+- title: tweak.sqlalchemy
+  if: sqlalchemy
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.sqlalchemy]
+
+  # Make sure `test_sqlalchemy_*` could be found
+  - py: |
+      # add-module-path
+      import __builtin__, sys, os, os.path
+      from htsql.core.util import DB
+      path = os.path.join(os.getcwd(), "test/code")
+      sys.path.insert(0, path)
+      __builtin__.demo = DB.parse(__pbbt__['demo'].db)
+      __builtin__.sandbox = DB.parse(__pbbt__['sandbox'].db)
+      from test_sqlalchemy_sandbox import createdb
+      createdb()
+
+  # Test SQLAlchemy integration with an existing schema
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.sqlalchemy:
+        engine: test_sqlalchemy_demo.engine
+        metadata: test_sqlalchemy_demo.metadata
+
+  # Check if columns are recognized
+  - uri: /school{code, name, campus}?code='art'
+  - uri: /program{school_code, code, title, degree, part_of_code}
+                ?school_code='ns'&code='gmth'
+  - uri: /department{code, name, school_code}
+                ?code='mth'
+  - uri: /course{department_code, no, title, credits, description}
+                ?department_code='astro'&no=215
+
+  # Check if links are recognized
+  - uri: /(school?code='art').department{name}
+  - uri: /(school?code='art').program{title}
+  - uri: /(department?code='mth').school{name}
+  - uri: /(department?code='mth').course{title}
+  - uri: /(program?school_code='ns'&code='gmth').school{name}
+  - uri: /(program?school_code='ns'&code='gmth').part_of{title}
+  - uri: /(program?school_code='ns'&code='gmth').program_via_part_of{title}
+  - uri: /(course?department_code='astro'&no=215).department{name}
+
+  # Test integration on SQLAlchemy-generated schema
+  - db: null
+    extensions:
+      htsql:
+        debug: true
+      tweak.sqlalchemy:
+        engine: test_sqlalchemy_sandbox.engine
+        metadata: test_sqlalchemy_sandbox.metadata
+
+  - uri: /users{name, fullname, count(addresses)}
+  - uri: /addresses{user.name, email_address}
+
+  # Restore the original `sys.path`
+  - py: |
+      # remove-module-path
+      from test_sqlalchemy_sandbox import dropdb
+      dropdb()
+      import __builtin__, sys, os, os.path
+      path = os.path.join(os.getcwd(), "test/code")
+      sys.path.remove(path)
+      del sys.modules['test_sqlalchemy_demo']
+      del sys.modules['test_sqlalchemy_sandbox']
+      del __builtin__.demo
+      del __builtin__.sandbox
+
+# TWEAK.SYSTEM - add access to system tables
+- title: tweak.system
+  if: pgsql
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.system]
+
+  # Test for added links
+  - load: demo
+    extensions:
+      tweak.system: {}
+  - uri: /pg_class{relname, relkind}?pg_namespace.nspname='ad'
+
+# TWEAK.TIMEOUT - limit query execution time
+- title: tweak.system
+  if: pgsql
+  tests:
+  # Addon description
+  - ctl: [ext, tweak.timeout]
+
+  # Test canceling of a query
+  - load: demo
+    extensions:
+      tweak.timeout:
+        timeout: 3
+  - uri: /count(enrollment.fork().fork())
+    expect: 409
+    ignore: true
+
+

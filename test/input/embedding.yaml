@@ -1,0 +1,9 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: Embedding HTSQL
+suite: embedding
+tests:
+- py: test/code/test_embedding.py
+

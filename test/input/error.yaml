@@ -1,0 +1,326 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: Error Reporting
+suite: error
+tests:
+
+- title: Scan Errors
+  tests:
+  # % requires two hexdecimal digits
+  - uri: /'?%@$'
+    expect: 400
+  # invalid UTF-8 sequence
+  - uri: /'%FF'
+    expect: 400
+    ignore: true
+  # no matching quote
+  - uri: /'Hello
+    expect: 400
+  # unexpected symbol
+  - uri: /`Hello'
+    expect: 400
+
+- title: Parse Errors
+  tests:
+  # expected the query end
+  - uri: /'Hello','World'
+    expect: 400
+  # expected `/`
+  - uri: school
+    expect: 400
+  # expected `/:<identifier>`
+  - uri: /school/department
+    expect: 400
+    skip: true  # interpreted as division
+  - uri: /school/:1
+    expect: 400
+  # expected `)`
+  - uri: /school/:html(/program}
+    expect: 400
+  # expected `:<identifier>`
+  - uri: /school:1
+    expect: 400
+  # expected `)`
+  - uri: /school :as ('School'}
+    expect: 400
+  # expected `}`
+  - uri: /school{code,name)
+    expect: 400
+  # expected `)`
+  - uri: /count(school}
+    expect: 400
+  # unexpected end of query
+  - uri: /school{code,name,
+    expect: 400
+  # unexpected symbol
+  - uri: /school{code,,name}
+    expect: 400
+  # expected ')'
+  - uri: /(2+2}
+    expect: 400
+  # expected '}'
+  - uri: /{count(school))
+    expect: 400
+
+- title: Bind Errors
+  tests:
+  # invalid output column
+  - uri: /department{school, code}
+    expect: 400
+    skip: true
+  # invalid in-selector assignment
+  - uri: /school{code, num_dept():=count(department)}
+    expect: 400
+  - uri: /school{code, department.num_course:=count(course)}
+    expect: 400
+  # invalid quotient column
+  - uri: /department^school
+    expect: 400
+  - uri: /department^(num_course:=count(course))
+    expect: 400
+  # unbalanced columns
+  - uri: /program.{school_code,code}->school{code}
+    expect: 400
+  # invalid pairs
+  - uri: /program.{code}->course{no}
+    expect: 400
+  # invalid assignments
+  - uri: /define((school).num_prog:=count(program)).true()
+    expect: 400
+  - uri: /define(true().school.num_prog:=count(program)).true()
+    expect: 400
+  - uri: /define(school.num_prog(1):=count(program)).true()
+    expect: 400
+  - uri: /define(school.(num_prog):=count(program)).true()
+    expect: 400
+  # invalid wildcard
+  - uri: /school?*1.5
+    expect: 400
+  - uri: /school?*5
+    expect: 400
+  # invalid reference
+  - uri: /school?$code='art'
+    expect: 400
+  # invalid complement
+  - uri: /school{code, count(^)}
+    expect: 400
+  # invalid names
+  - uri: /invalid
+    expect: 400
+  - uri: /invalid()
+    expect: 400
+  - uri: /school :invalid
+    expect: 400
+  - uri: /define(invalid.value:=true()).invalid{value}
+    expect: 400
+  # ambiguous name
+  - uri: /program.program
+    expect: 400
+
+- title: Lookup Hints
+  tests:
+  # invalid reference with a hint
+  - uri: /school?code=$scool_code
+          :given $school_code:='art'
+    expect: 400
+  # invalid reference with no hints
+  - uri: /school?code=$code
+          :given $school_code:='art'
+    expect: 400
+  # invalid reference with many hints
+  - uri: /school?code=$scool_code
+          :given ($school_code1:='art', $school_code2:='eng', $school_code3:='mus')
+    expect: 400
+  # invalid attribute; missing $
+  - uri: /school?code=school_code
+          :given $school_code:='art'
+    expect: 400
+  # invalid attribute; missing ()
+  - uri: /school{code, count{department}}
+    expect: 400
+  # invalid attribute; local typo
+  - uri: /school{code, count(depatrment)}
+    expect: 400
+  # invalid attribute; global typo
+  - uri: /department?school.code==nulll
+    expect: 400
+  # invalid attribute; no hints
+  - uri: /school{code, count(student)}
+    expect: 400
+  # invalid function; wrong number of arguments
+  - uri: /program.define(student_by_year($year) := student?year(start_date)=$year)
+            {code, count(student_by_year())}
+    expect: 400
+  - uri: /program.define(student_by_year($year) := student?year(start_date)=$year,
+                         student_by_year() := student_by_year(2011))
+            {code, count(student_by_year(2009,2010))}
+    expect: 400
+  # invalid function; extra ()
+  - uri: /department{school(), code}
+    expect: 400
+  # invalid function; local typo
+  - uri: /program.define(student_by_year($year) := student?year(start_date)=$year)
+            {code, count(students_by_year(2010))}
+    expect: 400
+  # invalid function; global typo
+  - uri: /cont(program)
+    expect: 400
+  # invalid function; no hints
+  - uri: /program{code, count(student_by_year(2010))}
+    expect: 400
+
+- title: Function Bind Errors
+  tests:
+  # invalid number of arguments
+  - uri: /count()
+    expect: 400
+  - uri: /today(1)
+    expect: 400
+  - uri: /slice()
+    expect: 400
+  - uri: /slice('HTSQL',1,3,5)
+    expect: 400
+  - uri: /school.sort()
+    expect: 400
+  - uri: /if(school)
+    expect: 400
+  - uri: /switch(school,department)
+    expect: 400
+  # invalid coersion
+  - uri: /department{code, school :if_null 'none'}
+    expect: 400
+  - uri: /department{code, is_null(school)}
+    expect: 400
+  - uri: /school?code=today()
+    expect: 400
+  - uri: /school?code==today()
+    expect: 400
+  - uri: /school?code={'art',5,today()}
+    expect: 400
+  - uri: /school?code<today()
+    expect: 400
+  - uri: /department{code, if(school,school.code,today())}
+    expect: 400
+  - uri: /department{code, if(school.code,school)}
+    expect: 400
+  - uri: /department{code, switch(school.code,today(),now())}
+    expect: 400
+  - uri: /department{code, switch(school.code,'art',today(),now())}
+    expect: 400
+  - uri: /department{code, switch(school.code,'art',school)}
+    expect: 400
+  # invalid comparison
+  - uri: /student?is_active<true()
+    expect: 400
+  # invalid correlation
+  - uri: /trunc(school)
+    expect: 400
+  - uri: /trunc(school,department)
+    expect: 400
+  - uri: /-school
+    expect: 400
+  - uri: /school*department
+    expect: 400
+  # invalid special arguments
+  - uri: /fetch(school)
+    expect: 400
+  - uri: /html(school)
+    expect: 400
+  - uri: /distinct(department)
+    expect: 400
+  - uri: /distinct(department{school})
+    expect: 400
+  - uri: /school.limit(today())
+    expect: 400
+  - uri: /school.limit(1,-1)
+    expect: 400
+  - uri: /department.sort(school)
+    expect: 400
+  - uri: /define(today()){now()}
+    expect: 400
+  - uri: /today() :given now()
+    expect: 400
+  # invalid aggregate expansion
+  - uri: /exists(school{code,name})
+    expect: 400
+  - uri: /count(school{code,name})
+    expect: 400
+  - uri: /avg(school{code,name})
+    expect: 400
+  - uri: /max(school{code,name})
+    expect: 400
+
+- title: Encode Errors
+  tests:
+  # invalid code expression
+  - uri: /true().fork()
+    expect: 400
+  # invalid flow expression
+  - uri: /true().fork(){true()}
+    expect: 400
+    skip: true
+  # invalid segment flow
+  - uri: /school|department
+    expect: 400
+  # singular quotient base
+  - uri: /department.(school^campus)
+    expect: 400
+  # invalid plural quotient base
+  - uri: /department{code, count($school^campus)}
+          :given $school:=school
+    expect: 400
+  # invalid quotient kernel
+  - uri: /school^true()
+    expect: 400
+  # invalid type conversion
+  - uri: /date(true())
+    expect: 400
+  # invalid untyped conversion
+  - uri: /boolean('!')
+    expect: 400
+  - uri: /integer('!')
+    expect: 400
+  - uri: /decimal('!')
+    expect: 400
+  - uri: /float('!')
+    expect: 400
+  - uri: /date('!')
+    expect: 400
+  - uri: /time('!')
+    expect: 400
+  - uri: /datetime('!')
+    expect: 400
+  # invalid aggregate
+  - uri: /department{code, count(school)}
+    expect: 400
+  - uri: /department{code, count(school{code})}
+    expect: 400
+  - uri: /department{code, count($school{code})}
+          :given $school:=school
+    expect: 400
+  - uri: /school{code, count(program|department)}
+    expect: 400
+
+- title: Compile Errors
+  tests:
+  # invalid singular expression
+  - uri: /school{code, department.code}
+    expect: 400
+  - uri: /school{code, department.count(course)}
+    expect: 400
+  - uri: /school{code, department.avg(course.credits)}
+    expect: 400
+  - uri: /school{department^count(course){*}}
+    expect: 400
+  # FIXME: connection error in stitch.py
+
+- title: Serialize Errors
+  tests:
+  # invalid integer value
+  - uri: /18446744073709551616
+    unless: [oracle]
+    expect: 400
+
+

@@ -1,0 +1,143 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: ETL/CRUD
+suite: etl
+if: pgsql
+tests:
+- load: etl
+- ctl: [ext, tweak.etl]
+- uri: /truncate(product_line)
+- uri: /truncate(manufacturer)
+- uri: /{code:='ACID', name:='Acer'} :as manufacturer
+        /:insert
+- uri: /insert(manufacturer:={code:='DELL', name:='Dell'})
+- uri: /{'TOSH' :as code, 'Toshiba' :as name} :as manufacturer
+        /:insert
+- uri: /{code:='0992', name:='Lenovo'} :as manufacturer
+        /:insert
+- uri: /insert(manufacturer:={'2376' :as code, 'Gigabyte' :as name})
+- uri: /{'AAPL' :as code, 'Apple' :as name} :as manufacturer
+        /:insert
+  headers:
+    Accept: application/json
+- uri: /{'6702' :as code, 'Fujitsu' :as name} :as manufacturer
+        /:insert
+  headers:
+    Accept: x-htsql/raw
+- uri: /{'ACID' :as code, 'Acer' :as name} :as manufacturer
+        /:insert
+  expect: 409
+  ignore: true
+- uri: /{'SMSN', 'Samsung'} :as manufacturer
+        /:insert
+  expect: 409
+- uri: /{code:='SMSN'} :as manufacturer
+        /:insert
+  expect: 409
+- uri: /{name:='Samsung'} :as manufacturer
+        /:insert
+  expect: 409
+- uri: /{code:='SMSN', name:='Samsung',
+         full_name:='Samsung Electronics Co Ltd'} :as manufacturer
+        /:insert
+  expect: 400
+- uri: /{code:='SMSN', name:=true} :as manufacturer
+        /:insert
+  expect: 400
+- uri: /{code:='SMSN', name:='Samsung'} :as manufacturer
+        /:insert
+- uri: /manufacturer{id(), *}
+- uri: /{manufacturer_code:='SMSN',
+         code:='GT', title:='Galaxy Note'} :as product_line
+        /:insert
+- uri: /{manufacturer_code:=@manufacturer[2376].code,
+         code:='U', title:='Extreme Ultrabook'} :as product_line
+        /:insert
+- uri: /{manufacturer:='SMSN',
+         code:='5', title:='Series 5 Ultrabook'} :as product_line
+        /:insert
+- uri: /{manufacturer:=top(@manufacturer?name~'fujitsu').id(),
+         code:='E', title:='Lifebook E Series'} :as product_line
+        /:insert
+- uri: /{manufacturer:='0992',
+         code:='Z', title:='IdeaPad Z Series'} :as product_line
+        /:insert
+- uri: /product_line[0992.Z]{
+         id(), code:='N', title:='IdeaPad N Series'}
+        /:clone
+- uri: /product_line
+- uri: /insert(product:={sku:='A0000001',
+                         product_line:='6702.E',
+                         title:='Fujitsu LifeBook AH552/SL Notebook',
+                         description:='Are you looking for an essential notebook with an extra-slim design, suitable for daily use? Then the 39.6 cm (15.6-inch) Fujitsu LIFEBOOK AH552/SL is the right choice. With only 25.4 mm in height and weight of 2.2 kg it fits into nearly every bag. Thanks to integrated WLAN and Bluetooth® you can work anytime and anywhere and the elegant aluminum cover gives you the headturning looks.',
+                         list_price:=null})
+- uri: /merge(product:={sku:='A0000002',
+                        product_line:=[0992.Z],
+                        title:='Lenovo IdeaPad Z580'})
+- uri: /clone(product[A0000002]{id(),
+                                title:='Lenovo IdeaPad Z585',
+                                list_price:='749.00'})
+  expect: 409
+  ignore: true
+- uri: /clone(product[A0000002]{id(),
+                                sku:='A0000005',
+                                title:='Lenovo IdeaPad Z585',
+                                list_price:='749.00'})
+- uri: /clone(product[A0000002]{id(),
+                                sku:='A0000006',
+                                product_line:=[0992.N],
+                                title:='Lenovo IdeaPad N585'})
+- uri: /merge(product:={sku:='A0000002',
+                        description:='IdeaPad Z Series laptops offer you a great balance of multimedia performance, affordability, and bold style, so you’re sure to make impressions as well as be entertained - no matter where you go',
+                        list_price:='699.00'})
+- uri: /merge(product:={list_price:='649.00'})
+  expect: 400
+- uri: /update(product:={[A0000002],
+                         list_price:='649.00'})
+- uri: /insert(product:={sku:='A0000003',
+                         manufacturer:='SMSN',
+                         title:='Smart TV'})
+- uri: /delete(product[A0000003])
+  expect: 400
+- uri: /delete(product[A0000003]{id()})
+- uri: /do(/{'A0000003' :as sku,
+             [0992] :as manufacturer,
+             'Lenovo ThinkPad T430' :as title} :as product
+            /:insert,
+           /product[A0000003])
+- uri: /insert(manufacturer:={code:='SNY', name:='Sony'})/:json
+- uri: /merge({'A0000004' :as sku,
+               [SNY] :as manufacturer,
+               'Sony Vaio' :as title} :as product)/:json
+- uri: /merge({'A0000004' :as sku,
+               'Sony Vaio SVE1711X1EB' :as title} :as product)/:json
+- uri: /update(product[A0000004]{id(), list_price:=1279})/:json
+- uri: /do($new_list_price:=product[A0000004].list_price*0.8:round(2),
+           update(product[A0000004]{id(), list_price:=$new_list_price}),
+           product[A0000004])
+- uri: /product
+- uri: &if
+    /if(!exists(category?label='Notebooks'),
+        insert(category := { label := 'Notebooks' }),
+        top(category?label='Notebooks').id())
+- uri: *if
+- uri: if(true)
+  expect: 400
+- uri: if(1, true, false)
+  expect: 400
+- uri: if(true, 1)
+- uri: if(false, 1)
+- uri: if(false, 0, true, 1)
+- uri: /category/:when(exists(category))
+- uri: /when(true)
+  expect: 400
+- uri:
+    /do($category_id := top(category?label='Notebooks').id(),
+        for($product_id := /product.id(),
+            insert(product_category := { category := $category_id, product := $product_id })))
+- uri: /with(/category, /product)
+  expect: 400
+- uri: /with(product[A0000004]{id:=id(), list_price}, update(product:={$id, list_price:=$list_price*2}))
+

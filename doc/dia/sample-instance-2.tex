@@ -1,0 +1,107 @@
+
+\documentclass{article}
+
+\include{prelude}
+
+\begin{document}
+
+\tikzset{
+    > = stealth', shorten > = 1pt, shorten < = 1pt,
+    node distance = 0.1cm,
+    unit node/.style = {fill=black!10, star, star points=8, minimum size=3cm},
+    domain node/.style = {fill=black!10, rectangle, minimum size=3cm,
+                          text width=4cm, rounded corners},
+    class node/.style = {fill=black!10, circle, minimum size=3cm},
+    node content/.style = {matrix, nodes={font=\ttfamily\footnotesize,
+                                          inner sep=.5pt,
+                                          text depth=.25ex, text height=1.5ex}},
+    arrow/.style = {single arrow, fill=black!5, minimum height=3cm,
+                    minimum width=2.5cm, single arrow head extend=.1cm,
+                    single arrow tip angle=120},
+    arrow header/.style = {font=\ttfamily}
+}
+
+\begin{tikzpicture}
+
+\node[unit node] (unit) {};
+\node[arrow] (unit to school) [right=of unit] {};
+\node[class node] (school) [right=of unit to school] {};
+\node[arrow, shape border rotate=270, xshift=2cm] (school to department) [below=of school] {};
+\node[class node, xshift=-2cm] (department) [below=of school to department] {};
+\node[arrow, shape border rotate=180] (department to name) [left=of department] {};
+\node[domain node] (string) [left=of department to name] {};
+
+\node[arrow header] at (unit to school.north) [above]
+    {school};
+\node[arrow header, rotate=270] at (school to department.east) [above]
+    {department};
+\node[arrow header] at (department to name.north) [above]
+    {name};
+
+\node[node content] at (unit)
+{
+    \node[text height=2ex] (I) {\large{@}}; \\
+};
+
+\node[node content] at (school)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (eng) {{[eng]}}; \\
+    \node (ns) {{[ns]}}; \\
+    \node (sc) {{[sc]}}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\node[node content] at (department)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (astro) {{[astro]}}; \\
+    \node (career) {{[career]}}; \\
+    \node (chem) {{[chem]}}; \\
+    \node (comp) {{[comp]}}; \\
+    \node (ee) {{[ee]}}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\node[node content] at (string)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (astro name) {'Astronomy'}; \\
+    \node (career name) {'Career Development'}; \\
+    \node (chem name) {'Chemistry'}; \\
+    \node (comp name) {'Computer Science'}; \\
+    \node (ee name) {'Electrical Engineering'}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\draw[->]
+    (I.east) to (eng.west);
+\draw[->]
+    (I.east) to (ns.west);
+\draw[->]
+    (I.east) to (sc.west);
+
+\draw[->, bend left=75]
+    (eng.east) to (ee.east);
+\draw[->, bend left=75]
+    (eng.east) to (comp.east);
+\draw[->, bend left=60]
+    (ns.east) to (chem.east);
+\draw[->, bend left=60]
+    (ns.east) to (astro.east);
+
+\draw[->]
+    (astro.west) to (astro name.east);
+\draw[->]
+    (career.west) to (career name.east);
+\draw[->]
+    (chem.west) to (chem name.east);
+\draw[->]
+    (comp.west) to (comp name.east);
+\draw[->]
+    (ee.west) to (ee name.east);
+
+\end{tikzpicture}
+
+\end{document}
+

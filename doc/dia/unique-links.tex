@@ -1,0 +1,109 @@
+
+\documentclass{article}
+
+\include{prelude}
+
+\begin{document}
+
+\tikzset{
+    > = stealth', shorten > = 1pt, shorten < = 1pt,
+    node distance = 0.1cm,
+    domain node/.style = {fill=black!10, rectangle, minimum size=3cm,
+                          text width=4cm, rounded corners},
+    class node/.style = {fill=black!10, circle, minimum size=3cm},
+    node content/.style = {matrix, nodes={font=\ttfamily\footnotesize,
+                                          inner sep=.5pt,
+                                          text depth=.25ex, text height=1.5ex}},
+    node header/.style = {font=\itshape},
+    arrow/.style = {single arrow, fill=black!5, minimum height=3cm,
+                    minimum width=2.5cm, single arrow head extend=.1cm,
+                    single arrow tip angle=120},
+    arrow header/.style = {font=\ttfamily},
+    brace/.style = {decorate, decoration={brace, amplitude=8pt, raise=1.5cm},
+                    draw=blue!50},
+    brace header/.style = {below=1.75cm, font=\itshape\color{blue!75}}
+}
+
+\begin{tikzpicture}
+
+\node[domain node] (string) {};
+\node[arrow, shape border rotate=180] (department to string) [right=of string] {};
+\node[class node] (department) [right=of department to string] {};
+\node[arrow] (department to school) [right=of department] {};
+\node[class node] (school) [right=of department to school] {};
+
+\node[node header] at (string.north) [above]
+    {string};
+\node[arrow header] at (department to string.north) [above]
+    {name};
+\node[node header] at (department.north) [above]
+    {department};
+\node[arrow header] at (department to school.north) [above]
+    {school};
+\node[node header] at (school.north) [above]
+    {school};
+
+\node[node content] at (string)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (ee name) {'Electrical Engineering'}; \\
+    \node (comp name) {'Computer Science'}; \\
+    \node (chem name) {'Chemistry'}; \\
+    \node (career name) {'Career Development'}; \\
+    \node (astro name) {'Astronomy'}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\node[node content] at (department)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (ee) {{[ee]}}; \\
+    \node (comp) {{[comp]}}; \\
+    \node (chem) {{[chem]}}; \\
+    \node (career) {{[career]}}; \\
+    \node (astro) {{[astro]}}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\node[node content] at (school)
+{
+    \node[text height=2.5ex] {\vdots}; \\
+    \node (eng) {{[eng]}}; \\
+    \node (ns) {{[ns]}}; \\
+    \node (sc) {{[sc]}}; \\
+    \node[text height=2.5ex] {\vdots}; \\
+};
+
+\draw[->]
+    (ee.west) to (ee name.east);
+\draw[->]
+    (comp.west) to (comp name.east);
+\draw[->]
+    (chem.west) to (chem name.east);
+\draw[->]
+    (career.west) to (career name.east);
+\draw[->]
+    (astro.west) to (astro name.east);
+
+\draw[->]
+    (ee.east) to (eng.west);
+\draw[->]
+    (comp.east) to (eng.west);
+\draw[->]
+    (chem.east) to (ns.west);
+\draw[->]
+    (astro.east) to (ns.west);
+
+\draw[brace]
+    (department.west)
+    -- node[brace header] {a unique attribute}
+    (string.east);
+\draw[brace]
+    (school.west)
+    -- node[brace header] {a non-unique link}
+    (department.east);
+
+\end{tikzpicture}
+
+\end{document}
+

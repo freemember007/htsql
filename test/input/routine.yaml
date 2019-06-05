@@ -1,0 +1,200 @@
+#
+# Copyright (c) 2006-2013, Prometheus Research, LLC
+#
+
+title: HTSQL-CTL Command-Line Tool
+suite: routine
+output: test/output/routine.yaml
+tests:
+
+# Default routine
+- title: htsql-ctl
+  tests:
+  - ctl: []
+  - ctl: [--help]
+  - ctl: [--version]
+
+# Help routine
+- title: htsql-ctl help
+  tests:
+  - ctl: [help, help]
+  - ctl: [help]
+
+# Version routine
+- title: htsql-ctl version
+  tests:
+  - ctl: [help, version]
+  - ctl: [version]
+
+# Shell routine
+- title: htsql-ctl shell
+  tests:
+  # Routine description
+  - ctl: [help, shell]
+
+  # Invocation
+
+  # Pass the connection URI as an argument
+  - ctl: [shell, &db "sqlite:build/regress/sqlite/htsql_demo.sqlite"]
+    stdin: |
+      /count(school)
+  # ... as an extension option
+  - ctl: [shell, -E, "htsql:db='sqlite:build/regress/sqlite/htsql_demo.sqlite'"]
+    stdin: |
+      /count(school)
+  # ... in the configuration file
+  - write: build/regress/sqlite/htsql_demo.yaml
+    data: |
+      htsql:
+        db: { engine: sqlite, database: build/regress/sqlite/htsql_demo.sqlite }
+  - ctl: [shell, -C, "build/regress/sqlite/htsql_demo.yaml"]
+    stdin: |
+      /count(school)
+  - rm: build/regress/sqlite/htsql_demo.yaml
+  # Multiple extension options
+  - ctl: [shell, *db, -E, "htsql:debug=true", -E, "tweak.meta"]
+    stdin: |
+      /meta(/count(table))
+  # Application of extension options
+  - ctl: [shell, *db, -E, "htsql:debug=false", -E, "htsql:debug=true"]
+    stdin: |
+      /count(school)
+
+  # Shell utility commands
+
+  # Help
+  - ctl: [shell, *db]
+    stdin: |
+      help help
+      help
+      help error
+      error
+  # Version
+  - ctl: [shell, *db]
+    stdin: |
+      help version
+      version
+  # Exit
+  - ctl: [shell, *db]
+    stdin: |
+      help exit
+      exit
+      /count(school)
+  # User
+  - ctl: [shell, *db]
+    stdin: |
+      help user
+      user
+      user htsql_demo
+  # Describe
+  - ctl: [shell, *db]
+    stdin: |
+      help describe
+      describe
+      describe department
+      describe department.school_code
+      describe department.course
+      describe error
+  # Headers
+  - ctl: [shell, *db]
+    stdin: |
+      help headers
+      headers
+      headers on
+      /count(school)
+      headers off
+      /count(school)
+  # Pager
+  - ctl: [shell, *db]
+    stdin: |
+      help pager
+      pager
+      pager on
+      pager off
+
+  # Shell query commands
+
+  # Get
+  - ctl: [shell, *db]
+    stdin: |
+      help get
+      get
+      get /count(school)
+      /count(school)
+      /error
+  # Post
+  - write: build/regress/post.json
+    data: |
+      { "school_code": "art" }
+  - write: build/regress/post.data
+    data: "school_code=art"
+  - ctl: [shell, *db]
+    stdin: |
+      help post
+      post
+      post build/regress/post.json /school
+      post build/regress/post.data application/x-www-form-urlencoded /school
+      post error /school
+  - rm: [build/regress/post.json, build/regress/post.data]
+  # Run
+  - write: build/regress/run.htsql
+    data: |
+      /{count(school),
+        count(program),
+        count(department)}
+      /school{code, name}
+      /department[ee]
+        .course
+  - ctl: [shell, *db]
+    stdin: |
+      help run
+      run
+      run build/regress/run.htsql
+      run error
+  - rm: build/regress/run.htsql
+
+# Server routine
+- title: htsql-ctl server
+  tests:
+  # Routine description
+  - ctl: [help, server]
+
+  # Invocation
+
+  # Default address
+  - start-ctl: &server-1 [server, *db, -q]
+    sleep: 1
+  - py: |
+      # GET-1
+      import time, urllib
+      tries = 0
+      while tries < 60:
+          try:
+              print urllib.urlopen("http://127.0.0.1:8080/count(school)").read()
+              break
+          except:
+              tries += 1
+              time.sleep(0.5)
+      else:
+          print "Unable to connect to the server!"
+  - end-ctl: *server-1
+
+  # Custom address
+  - start-ctl: &server-2 [server, *db, --host, "127.0.0.1", --port, "8088", -q]
+    sleep: 1
+  - py: |
+      # GET-2
+      import time, urllib
+      tries = 0
+      while tries < 60:
+          try:
+              print urllib.urlopen("http://127.0.0.1:8088/count(school)").read()
+              break
+          except:
+              tries += 1
+              time.sleep(0.5)
+      else:
+          print "Unable to connect to the server!"
+  - end-ctl: *server-2
+
+

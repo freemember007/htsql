@@ -1,0 +1,23 @@
+Source: ${NAME}
+Section: database
+Priority: optional
+Maintainer: Clark C. Evans <cce@clarkevans.com>
+Build-Depends: python-all, debhelper (>= 7.4.3), python-setuptools (>= 0.6b3)
+Homepage: http://htsql.org/
+Vcs-Browser: https://bitbucket.org/prometheus/htsql/
+Standards-Version: 3.9.2
+X-Python-Version: >= 2.6
+
+Package: ${NAME}
+Architecture: all
+Depends: ${DEPENDS}
+Suggests: ${SUGGESTS}
+Description: ${DESCRIPTION_HEAD}
+ HTSQL is a comprehensive navigational query language for relational
+ databases.  HTSQL is designed for data analysts and other accidental
+ programmers who have complex business inquiries to solve and need a
+ productive tool to write and share database queries.  HTSQL is free
+ and open source software.  For more detail, visit http://htsql.org/.
+ .
+ ${DESCRIPTION_TAIL}
+
